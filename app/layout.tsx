@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,6 +14,11 @@ export const metadata: Metadata = {
     description: "Wallet-owned short links powered by Stellar and Soroban.",
     images: ["/brand/blink-mark-512.png"],
   },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "dark",
+  themeColor: "#0b0e0c",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
