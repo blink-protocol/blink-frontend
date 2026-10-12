@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { getAddress, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
-import { buildCreateTransaction, networkPassphrase, submitTransaction } from "@/lib/stellar";
+import { buildCreateTransaction, getNetworkPassphrase, submitTransaction } from "@/lib/stellar";
 
 type State = "idle" | "connecting" | "signing" | "submitting" | "success" | "error";
 
@@ -31,6 +31,7 @@ export function CreateLinkForm() {
       if (addressResult.error) throw new Error(addressResult.error);
 
       setState("signing");
+      const networkPassphrase = getNetworkPassphrase();
       const xdr = await buildCreateTransaction(addressResult.address, alias, destination);
       const signed = await signTransaction(xdr, { networkPassphrase });
       if (signed.error) throw new Error(signed.error);
@@ -38,7 +39,11 @@ export function CreateLinkForm() {
       setState("submitting");
       const hash = await submitTransaction(signed.signedTxXdr);
       setState("success");
-      setMessage(`Owned on Stellar · ${hash.slice(0, 10)}…`);
+      const explorer =
+        networkPassphrase.includes("Test")
+          ? `https://stellar.expert/explorer/testnet/tx/${hash}`
+          : `https://stellar.expert/explorer/public/tx/${hash}`;
+      setMessage(`Owned on Stellar · ${hash.slice(0, 10)}… · ${explorer}`);
     } catch (error) {
       setState("error");
       setMessage(error instanceof Error ? error.message : "Something went wrong.");

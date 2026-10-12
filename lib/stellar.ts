@@ -10,7 +10,6 @@ import {
 } from "@stellar/stellar-sdk";
 
 const rpcUrl = process.env.NEXT_PUBLIC_STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org";
-export const networkPassphrase = Networks.TESTNET;
 export const contractId = process.env.NEXT_PUBLIC_CONTRACT_ID ?? "";
 export const server = new rpc.Server(rpcUrl);
 
@@ -22,8 +21,28 @@ export type LinkRecord = {
   updated_at: bigint;
 };
 
+/** Map deployment network name to a Stellar passphrase. Fail closed on unknown values. */
+export function getNetworkPassphrase(
+  network: string | undefined = process.env.NEXT_PUBLIC_STELLAR_NETWORK,
+): string {
+  switch ((network ?? "").trim().toLowerCase()) {
+    case "testnet":
+      return Networks.TESTNET;
+    case "public":
+    case "mainnet":
+      return Networks.PUBLIC;
+    case "":
+      throw new Error("NEXT_PUBLIC_STELLAR_NETWORK is not configured. Use testnet or public.");
+    default:
+      throw new Error(
+        `Unsupported NEXT_PUBLIC_STELLAR_NETWORK "${network}". Use testnet or public.`,
+      );
+  }
+}
+
 export async function buildCreateTransaction(owner: string, alias: string, destination: string) {
   if (!contractId) throw new Error("NEXT_PUBLIC_CONTRACT_ID is not configured.");
+  const networkPassphrase = getNetworkPassphrase();
   const account = await server.getAccount(owner);
   const contract = new Contract(contractId);
   let transaction = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase })
@@ -45,6 +64,7 @@ export async function buildCreateTransaction(owner: string, alias: string, desti
 }
 
 export async function submitTransaction(signedXdr: string) {
+  const networkPassphrase = getNetworkPassphrase();
   const tx = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
   const sent = await server.sendTransaction(tx);
   if (sent.status === "ERROR") throw new Error("Transaction submission failed.");
@@ -60,6 +80,7 @@ export async function submitTransaction(signedXdr: string) {
 
 export async function resolveAlias(alias: string): Promise<LinkRecord | null> {
   if (!contractId) return null;
+  const networkPassphrase = getNetworkPassphrase();
   const source = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
   const account = await server.getAccount(source).catch(() => null);
   if (!account) return null;
@@ -72,4 +93,3 @@ export async function resolveAlias(alias: string): Promise<LinkRecord | null> {
   if (rpc.Api.isSimulationError(simulation) || !simulation.result?.retval) return null;
   return scValToNative(simulation.result.retval) as LinkRecord | null;
 }
-
